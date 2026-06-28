@@ -16,35 +16,34 @@ def save_data(new_data):
     df.to_csv(CSV_FILE, index=False, encoding="utf-8-sig")
 
 
-# --- ✨ 【ここから追加】フォント＆デザインの超カスタム ---
+# --- ✨ フォント＆デザインの超カスタム ---
 
 st.markdown(
     """
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Reggae+One&display=swap');
 
-    /* アプリ全体の文字、ボタン、入力欄、サイドバーすべてのフォントを書き換える */
     html, body, [data-testid="stAppViewContainer"], [data-testid="stSidebar"], button, select, input, label, p, span {
         font-family: 'Reggae One', system-ui, sans-serif !important;
     }
     
-    /* タイトルの文字を少し大きく、ネオン感を強化 */
     .splatoon-title {
         color: #E6FF00; 
         text-shadow: 3px 3px 0px #2F195A, -1px -1px 0px #2F195A, 1px -1px 0px #2F195A, -1px 1px 0px #2F195A;
-        font-size: 40px;
+        font-size: 36px; /* 画面に収まりやすいよう少しだけ小さく調整 */
         text-align: center; 
         border-bottom: 4px dashed #E6FF00; 
         padding-bottom: 10px;
         margin-bottom: 25px;
+        line-height: 1.3; /* 改行したときの行間をきれいに保つ */
     }
     </style>
     """, 
     unsafe_allow_html=True
 )
 
-# 装飾したタイトルを表示
-st.markdown('<div class="splatoon-title">🦑 SPLATOON 3 戦績・反省分析ツール</div>', unsafe_allow_html=True)
+# ★【変更ポイント】<br> を挟むことで、「SPLATOON 3」の後で確実に改行されるようにしました
+st.markdown('<div class="splatoon-title">🦑 SPLATOON 3<br>戦績・反省分析ツール</div>', unsafe_allow_html=True)
 
 # --- ✨ デザインカスタムここまで ---
 
@@ -80,27 +79,20 @@ if result == "LOSE":
     next_mindset = st.sidebar.text_area("🔥 次の試合で意識すること")
 
 if st.sidebar.button("この戦績を記録する"):
-    # ここの辞書（ { } ）の中身を綺麗に直します
     new_battle = {
-        "ルール": rule, 
-        "使用ブキ": weapon,  # ←ここを直しました！
-        "勝敗": result, 
-        "キル数": kills, 
-        "デス数": deaths,
-        "敗因分類": lose_reason_type, 
-        "詳細理由": lose_reason, 
-        "改善案": improvement, 
-        "次の意識": next_mindset
+        "ルール": rule, "使用ブキ": weapon, "勝敗": result, "キル数": kills, "デス数": deaths,
+        "敗因分類": lose_reason_type, "詳細理由": lose_reason, "改善案": improvement, "次の意識": next_mindset
     }
     save_data(new_battle)
     st.sidebar.success("CSVファイルにデータを保存しました！")
     st.rerun()
 
+
 # --- メイン画面：分析と次へのアクション ---
-st.markdown("<h3 style='color: #E6FF00;'>📋 今回の試合結果 & ネクストアクション</h3>", unsafe_allow_html=True)
+st.markdown("<h3 style='color: #E6FF00;'>📋 今回の試合結果 & ネクネクストアクション</h3>", unsafe_allow_html=True)
 
 if result == "WIN":
-    st.balloons() 
+    # ★【変更ポイント】st.balloons() を削除して、すっきりWINが表示されるようにしました
     st.success(f"🎉 【WIN】{rule}（ブキ: {weapon}） | {kills}キル / {deaths}デス")
 else:
     st.error(f"😢 【LOSE】{rule}（ブキ: {weapon}） | {kills}キル / {deaths}デス")
