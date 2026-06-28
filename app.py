@@ -1,14 +1,20 @@
 import streamlit as st
 import pandas as pd
 import os
+import datetime # ★日付を扱うためのライブラリを追加
 
 CSV_FILE = "splatoon_battles.csv"
 
 def load_data():
     if os.path.exists(CSV_FILE):
-        return pd.read_csv(CSV_FILE)
+        df = pd.read_csv(CSV_FILE)
+        # ★【互換性ケア】過去に入力したデータに「日付」列がない場合、自動で今日の日付を入れてエラーを防ぐ
+        if "日付" not in df.columns:
+            df["日付"] = str(datetime.date.today())
+        return df
     else:
-        return pd.DataFrame(columns=["ルール", "使用ブキ", "勝敗", "キル数", "デス数", "敗因分類", "詳細理由", "改善案", "次の意識"])
+        # 新しく列に「日付」を追加
+        return pd.DataFrame(columns=["日付", "ルール", "使用ブキ", "勝敗", "キル数", "デス数", "敗因分類", "詳細理由", "改善案", "次の意識"])
 
 def save_data(new_data):
     df = load_data()
@@ -17,7 +23,6 @@ def save_data(new_data):
 
 
 # --- ✨ フォント＆デザインの超カスタム ---
-
 st.markdown(
     """
     <style>
@@ -30,28 +35,28 @@ st.markdown(
     .splatoon-title {
         color: #E6FF00; 
         text-shadow: 3px 3px 0px #2F195A, -1px -1px 0px #2F195A, 1px -1px 0px #2F195A, -1px 1px 0px #2F195A;
-        font-size: 36px; /* 画面に収まりやすいよう少しだけ小さく調整 */
+        font-size: 36px; 
         text-align: center; 
         border-bottom: 4px dashed #E6FF00; 
         padding-bottom: 10px;
         margin-bottom: 25px;
-        line-height: 1.3; /* 改行したときの行間をきれいに保つ */
+        line-height: 1.3; 
     }
     </style>
     """, 
     unsafe_allow_html=True
 )
 
-# ★【変更ポイント】<br> を挟むことで、「SPLATOON 3」の後で確実に改行されるようにしました
 st.markdown('<div class="splatoon-title">🦑 SPLATOON 3<br>戦績・反省分析ツール</div>', unsafe_allow_html=True)
-
-# --- ✨ デザインカスタムここまで ---
-
 
 battle_df = load_data()
 
 # --- サイドバー：データ入力 ---
 st.sidebar.markdown("<h2 style='color: #E6FF00;'>【試合データの入力】</h2>", unsafe_allow_html=True)
+
+# ★【新機能】カレンダーから日付を選択（標準は今日の日付）
+match_date = st.sidebar.date_input("試合日", datetime.date.today())
+
 rule = st.sidebar.selectbox("ルール", ["ガチエリア", "ガチヤグラ", "ガチホコ", "ガチアサリ", "ナワバリバトル"])
 weapon = st.sidebar.text_input("使用ブキ", value="スプラシューター")
 result = st.sidebar.radio("勝敗", ["WIN", "LOSE"], horizontal=True)
@@ -80,6 +85,7 @@ if result == "LOSE":
 
 if st.sidebar.button("この戦績を記録する"):
     new_battle = {
+        "日付": str(match_date), # ★日付を文字列にして保存
         "ルール": rule, "使用ブキ": weapon, "勝敗": result, "キル数": kills, "デス数": deaths,
         "敗因分類": lose_reason_type, "詳細理由": lose_reason, "改善案": improvement, "次の意識": next_mindset
     }
@@ -89,10 +95,9 @@ if st.sidebar.button("この戦績を記録する"):
 
 
 # --- メイン画面：分析と次へのアクション ---
-st.markdown("<h3 style='color: #E6FF00;'>📋 今回の試合結果 & ネクネクストアクション</h3>", unsafe_allow_html=True)
+st.markdown("<h3 style='color: #E6FF00;'>📋 今回の試合結果 & ネクストアクション</h3>", unsafe_allow_html=True)
 
 if result == "WIN":
-    # ★【変更ポイント】st.balloons() を削除して、すっきりWINが表示されるようにしました
     st.success(f"🎉 【WIN】{rule}（ブキ: {weapon}） | {kills}キル / {deaths}デス")
 else:
     st.error(f"😢 【LOSE】{rule}（ブキ: {weapon}） | {kills}キル / {deaths}デス")
@@ -117,15 +122,34 @@ if not battle_df.empty:
     with metrics_col2:
         st.metric("トータル勝率", f"{win_rate:.1f} %")
         
-    st.markdown("#### 🔹 ルール別の勝率")
-    summary = battle_df.groupby(["ルール", "勝敗"]).size().unstack(fill_value=0)
-    if "WIN" not in summary.columns: summary["WIN"] = 0
-    if "LOSE" not in summary.columns: summary["LOSE"] = 0
+    # 分析グラフを横並びにするためのレイアウト調整
+    graph_col1, graph_col2 = st.columns(2)
+    
+    with graph_col1:
+        st.markdown("#### 🔹 ルール別の勝率")
+        summary_rule = battle_df.groupby(["ルール", "勝敗"]).size().unstack(fill_value=0)
+        if "WIN" not in summary_rule.columns: summary_rule["WIN"] = 0
+        if "LOSE" not in summary_rule.columns: summary_rule["LOSE"] = 0
+        summary_rule["勝率(%)"] = (summary_rule["WIN"] / (summary_rule["WIN"] + summary_rule["LOSE"])) * 100
+        st.bar_chart(summary_rule["勝率(%)"])
         
-    summary["勝率(%)"] = (summary["WIN"] / (summary["WIN"] + summary["LOSE"])) * 100
-    st.bar_chart(summary["勝率(%)"])
+    with graph_col2:
+        # ★【新機能】ブキ別の勝率グラフ
+        st.markdown("#### 🔹 ブキ別の勝率")
+        summary_weapon = battle_df.groupby(["使用ブキ", "勝敗"]).size().unstack(fill_value=0)
+        if "WIN" not in summary_weapon.columns: summary_weapon["WIN"] = 0
+        if "LOSE" not in summary_weapon.columns: summary_weapon["LOSE"] = 0
+        summary_weapon["勝率(%)"] = (summary_weapon["WIN"] / (summary_weapon["WIN"] + summary_weapon["LOSE"])) * 100
+        st.bar_chart(summary_weapon["勝率(%)"])
+        
+    # ★【新機能】日付別のプレイ数（活動量の可視化）
+    st.markdown("#### 📈 日付別のプレイ数（活動量）")
+    date_counts = battle_df.groupby("日付").size().reset_index(name="試合数")
+    st.line_chart(date_counts.set_index("日付"))
     
     st.markdown("#### 🔹 過去の戦績一覧（最新5試合）")
-    st.dataframe(battle_df.tail(5))
+    # 表示する列の順番をきれいに整理
+    display_df = battle_df[["日付", "ルール", "使用ブキ", "勝敗", "キル数", "デス数", "敗因分類"]]
+    st.dataframe(display_df.tail(5))
 else:
     st.info("まだ戦績データがありません。左側のサイドバーから最初の1試合を記録してみましょう！")
