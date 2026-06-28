@@ -1,0 +1,15 @@
+[theme]
+# スプラ3のメインネオンイエロー（ボタンや選択時のアクセント）
+primaryColor = "#E6FF00"
+
+# メイン画面の背景（イカすダークグレー）
+backgroundColor = "#161618"
+
+# サイドバーの背景（バトルの深みのあるパープル）
+secondaryBackgroundColor = "#2F195A"
+
+# 文字の色（視認性の高い白）
+textColor = "#FFFFFF"
+
+# フォントスタイル
+font = "sans serif"
